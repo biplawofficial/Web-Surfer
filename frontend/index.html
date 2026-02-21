@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agentic Surfer Chat</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background-color: #ffffff;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      .chat-container {
+        width: 100%;
+        max-width: 600px;
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        background-color: #fff;
+        overflow: hidden;
+      }
+      .chat-header {
+        padding: 16px;
+        border-bottom: 1px solid #e0e0e0;
+        font-weight: 600;
+        text-align: center;
+        background-color: #f9f9f9;
+      }
+      .chat-messages {
+        flex-grow: 1;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .message {
+        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        line-height: 1.4;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+      }
+      .message.user {
+        align-self: flex-end;
+        background-color: #000;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+      }
+      .message.agent {
+        align-self: flex-start;
+        background-color: #f1f1f1;
+        color: #333;
+        border-bottom-left-radius: 4px;
+      }
+      .chat-input-container {
+        padding: 16px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 8px;
+        background-color: #fff;
+      }
+      .chat-input {
+        flex-grow: 1;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 24px;
+        outline: none;
+        font-size: 16px;
+        transition: border-color 0.2s;
+      }
+      .chat-input:focus {
+        border-color: #000;
+      }
+      .send-button {
+        background-color: #000;
+        color: #fff;
+        border: none;
+        border-radius: 24px;
+        padding: 0 20px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background-color 0.2s;
+      }
+      .send-button:hover {
+        background-color: #333;
+      }
+      .send-button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      /* Loading dots */
+      .typing-indicator {
+        display: flex;
+        gap: 4px;
+        padding: 4px 8px;
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        background: #888;
+        border-radius: 50%;
+        animation: bounce 1.4s infinite ease-in-out both;
+      }
+      .dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+      .dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+      @keyframes bounce {
+        0%,
+        80%,
+        100% {
+          transform: scale(0);
+        }
+        40% {
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="chat-header">Agentic Surfer</div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="message agent">Hello! How can I help you today?</div>
+      </div>
+      <div class="chat-input-container">
+        <input
+          type="text"
+          id="chat-input"
+          class="chat-input"
+          placeholder="Type a message..."
+          autocomplete="off"
+        />
+        <button id="send-button" class="send-button">Send</button>
+      </div>
+    </div>
+
+    <script>
+      const chatMessages = document.getElementById("chat-messages");
+      const chatInput = document.getElementById("chat-input");
+      const sendButton = document.getElementById("send-button");
+
+      function addMessage(text, sender) {
+        const messageDiv = document.createElement("div");
+        messageDiv.classList.add("message", sender);
+
+        if (sender === "agent" && text === "") {
+          messageDiv.id = "typing-indicator";
+          messageDiv.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            `;
+        } else {
+          messageDiv.textContent = text;
+        }
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function removeTypingIndicator() {
+        const indicator = document.getElementById("typing-indicator");
+        if (indicator) {
+          indicator.remove();
+        }
+      }
+
+      async function sendMessage() {
+        const query = chatInput.value.trim();
+        if (!query) return;
+
+        // Add user message
+        addMessage(query, "user");
+        chatInput.value = "";
+        sendButton.disabled = true;
+
+        // Show typing indicator
+        addMessage("", "agent");
+
+        try {
+          const response = await fetch("http://localhost:8007/query", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query: query, mode: 1 }),
+          });
+
+          const data = await response.json();
+          removeTypingIndicator();
+
+          // Check for answer or result
+          let botResponse = "Received response: " + JSON.stringify(data);
+          if (data.answer) {
+            botResponse = data.answer;
+          } else if (data.result) {
+            botResponse = data.result;
+          } else if (typeof data === "string") {
+            botResponse = data;
+          } else if (data.status === "error") {
+            botResponse = "Server Error: " + data.message;
+          }
+
+          addMessage(botResponse, "agent");
+        } catch (error) {
+          console.error("Error fetching from API:", error);
+          removeTypingIndicator();
+          addMessage("Error: Could not connect to the server.", "agent");
+        } finally {
+          sendButton.disabled = false;
+          chatInput.focus();
+        }
+      }
+
+      sendButton.addEventListener("click", sendMessage);
+
+      chatInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          sendMessage();
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -85,6 +85,8 @@ RULES:
    This keeps the browser open so the user can see/use it.
 5. STOP immediately once the task is achieved. Don't keep clicking after a song starts or a page loads.
 6. Never repeat the exact same action twice in a row.
+7. Dont scroll for too long max 3-4 times.
+8. If you dont find any result change the logic.
 
 Examples:
 {{"tool": "type", "params": {{"element_id": 5, "text": "AI news"}}}}
@@ -171,7 +173,7 @@ async def run_tool(page, action):
 
 async def run_agent(query, model="gpt-oss:120b-cloud"):
     client = AsyncClient(timeout=30.0)
-
+    global history
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=False)
         context = await browser.new_context()
@@ -214,6 +216,7 @@ async def run_agent(query, model="gpt-oss:120b-cloud"):
             if signal == "answer":
                 print(f"\n✅ {text}")
                 await browser.close()
+                history = []
                 return {"status": "success", "answer": text}
 
             if signal == "done":
@@ -221,6 +224,7 @@ async def run_agent(query, model="gpt-oss:120b-cloud"):
                 print("🌐 Browser left open. Press Enter to close...")
                 await asyncio.get_event_loop().run_in_executor(None, input)
                 await browser.close()
+                history = []
                 return {"status": "success", "answer": text}
 
             await asyncio.sleep(1)
