@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from multi_task import WebAgent
+from multi_task import run_agent
 
 app = FastAPI()
 
@@ -16,23 +16,19 @@ app.add_middleware(
 
 class QueryRequest(BaseModel):
     query: str
-    mode: int
+    mode: int = 1
 
 
 @app.post("/query")
 async def handle_query(request: QueryRequest):
     try:
-        agent = WebAgent()
-        result = await agent.run(request.query)
-
-        if result.get("status") == "success":
-            return result.get("answer")
+        result = await run_agent(request.query)
         return result
     except Exception as e:
-        return {"error": f"Server Error: {str(e)}"}
+        return {"status": "error", "answer": f"Server Error: {str(e)}"}
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8007, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=8007)
